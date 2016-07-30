@@ -1,0 +1,7 @@
+/* some style */
+
+table, th, td {
+  border: 1px solid tomato;
+  border-collapse: collapse;
+  padding: 15px;
+}
