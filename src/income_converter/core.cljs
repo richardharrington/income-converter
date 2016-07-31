@@ -9,44 +9,59 @@
 (enable-console-print!)
 
 
-(def soc-sec-tax-rate 0.123)
-(def medicare-tax-rate 0.030)
-(def max-salary-for-soc-sec-tax 113700)
-(def employee-share-of-soc-sec (/ soc-sec-tax-rate 2))
-(def employee-share-of-medicare (/ medicare-tax-rate 2))
+(def soc-sec-rate 0.123)
+(def medicare-rate 0.030)
+(def soc-sec-salary-cutoff 113700)
 
 ; These will eventually be user input
-(def hours-per-week 40)
-(def weeks-off-per-year 5)
+(def hours-per-week 60)
+(def weeks-off 5)
 (def monthly-health-ins-diff 200)
 
+(defn dollar-str [n]
+  (. n (toLocaleString #js [] #js {:style "currency"
+                                   :currency "USD"
+                                   :maximumFractionDigits 0})))
 
 (defn row [hourly-wage]
-  (let [gross-income (* hourly-wage hours-per-week (- 52 weeks-off-per-year))
-        if-W2 (- gross-income (* monthly-health-ins-diff 12))
-        soc-sec (* (min gross-income max-salary-for-soc-sec-tax)
-                   employee-share-of-soc-sec)
-        medicare (* gross-income employee-share-of-medicare)
-        if-1099 (- if-W2 (+ soc-sec medicare))]
+  (let [weekly-income (* hourly-wage hours-per-week)
+        yearly-income (* weekly-income (- 52 weeks-off))
+        if-w2 (- yearly-income (* monthly-health-ins-diff 12))
+        soc-sec-tax (* (min yearly-income soc-sec-salary-cutoff)
+                       (/ soc-sec-rate 2))
+        medicare-tax (* yearly-income (/ medicare-rate 2))
+        if-1099 (- if-w2 (+ soc-sec-tax medicare-tax))]
     (sab/html
      [:tr
-      [:td hourly-wage]
-      [:td gross-income]
-      [:td if-W2]
-      [:td if-1099]])))
+      (for [n [hourly-wage weekly-income yearly-income if-w2 if-1099]]
+        [:td (dollar-str n)])])))
 
-(defn table-comp [{:keys [min-hourly-wage
+(defn main-table [{:keys [min-hourly-wage
                           max-hourly-wage
-                          hourly-wage-inc] :as state}]
-  (println state)
+                          hourly-wage-inc]}]
   (sab/html
    [:table
     [:tr
      [:th "hourly wage"]
-     [:th "gross income"]
+     [:th "weekly income"]
+     [:th "yearly income"]
      [:th "If contractor gets W-2, FTE salary equiv is:"]
      [:th "If contractor gets 1099, FTE salary equiv is:"]]
     (map row (range min-hourly-wage max-hourly-wage hourly-wage-inc))]))
+
+(defn input-component [{:keys [hours-per-week
+                               weeks-off
+                               monthly-health-ins-diff]}]
+  (sab/html
+   [:input {:onChange #(println (aget % "target" "value"))}]
+   [:div "input something here"]))
+
+(defn page [props]
+  (sab/html
+   [:div.page
+    [:h1 "hi"]
+    (input-component {})
+    (main-table props)]))
 
 
 ;; define your app data so that it doesn't get over-written on reload
@@ -56,8 +71,6 @@
                     :hourly-wage-inc 5})
 
 (defonce app-state (atom initial-state))
-
-(println @app-state)
 
 (defn on-js-reload []
   #_(reset! app-state initial-state)
@@ -69,6 +82,6 @@
 (defn render []
 
   (let [node (.getElementById js/document "app")]
-    (.render js/React (table-comp @app-state) node)))
+    (.render js/React (page @app-state) node)))
 
 (render)
