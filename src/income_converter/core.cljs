@@ -16,8 +16,7 @@
                     :monthly-health-ins-diff 200
 
                     :min-hourly-wage 5
-                    :max-hourly-wage 205
-                    :hourly-wage-inc 5})
+                    :max-hourly-wage 205})
 
 (defonce app-state (atom initial-state))
 
@@ -26,6 +25,8 @@
 (def soc-sec-rate 0.123)
 (def medicare-rate 0.030)
 (def soc-sec-salary-cutoff 113700)
+
+(def hourly-wage-inc 5)
 
 (defn dollar-str [n]
   (. n (toLocaleString #js [] #js {:style "currency"
@@ -53,8 +54,7 @@
                           monthly-health-ins-diff
 
                           min-hourly-wage
-                          max-hourly-wage
-                          hourly-wage-inc]}]
+                          max-hourly-wage]}]
   (sab/html
    [:table
     [:thead
@@ -84,8 +84,7 @@
                                monthly-health-ins-diff
 
                                min-hourly-wage
-                               max-hourly-wage
-                               hourly-wage-inc]}]
+                               max-hourly-wage]}]
   (println hours-per-week)
   (sab/html
    [:div.input-section
@@ -103,13 +102,10 @@
                      :update! (partial update-app-state! :min-hourly-wage)}
                     {:val max-hourly-wage
                      :display "Maximum hourly wage"
-                     :update! (partial update-app-state! :max-hourly-wage)}
-                    {:val hourly-wage-inc
-                     :display "Amount hourly wage goes up in each row"
-                     :update! (partial update-app-state! :hourly-wage-inc)}])]))
+                     :update! (partial update-app-state! :max-hourly-wage)}])]))
 
 
-(defn validate-input [input]
+(defn input->int [input]
   (if (= input "")
     0
     (js/parseInt input)))
@@ -122,7 +118,7 @@
     [:h1 "Income conversion chart"]
     (input-component (assoc props :update-app-state!
                             (fn [key val]
-                              (when-let [n (validate-input val)]
+                              (when-let [n (input->int val)]
                                 (swap! app-state assoc key n)
                                 (render)))))
     (main-table props)]))
