@@ -13,17 +13,15 @@
 (def medicare-rate 0.030)
 (def soc-sec-salary-cutoff 113700)
 
-; These will eventually be user input
-(def hours-per-week 60)
-(def weeks-off 5)
-(def monthly-health-ins-diff 200)
-
 (defn dollar-str [n]
   (. n (toLocaleString #js [] #js {:style "currency"
                                    :currency "USD"
                                    :maximumFractionDigits 0})))
 
-(defn row [hourly-wage]
+(defn row [{:keys [hourly-wage
+                   hours-per-week
+                   weeks-off
+                   monthly-health-ins-diff]}]
   (let [weekly-income (* hourly-wage hours-per-week)
         yearly-income (* weekly-income (- 52 weeks-off))
         if-w2 (- yearly-income (* monthly-health-ins-diff 12))
@@ -38,7 +36,7 @@
 
 (defn main-table [{:keys [min-hourly-wage
                           max-hourly-wage
-                          hourly-wage-inc]}]
+                          hourly-wage-inc] :as props}]
   (sab/html
    [:table
     [:tr
@@ -47,7 +45,8 @@
      [:th "yearly income"]
      [:th "If contractor gets W-2, FTE salary equiv is:"]
      [:th "If contractor gets 1099, FTE salary equiv is:"]]
-    (map row (range min-hourly-wage max-hourly-wage hourly-wage-inc))]))
+    (map #(row (assoc props :hourly-wage %))
+         (range min-hourly-wage max-hourly-wage hourly-wage-inc))]))
 
 (defn input-component [{:keys [hours-per-week
                                weeks-off
@@ -66,7 +65,11 @@
 
 ;; define your app data so that it doesn't get over-written on reload
 
-(def initial-state {:min-hourly-wage 5
+(def initial-state {:hours-per-week 30
+                    :weeks-off 4
+                    :monthly-health-ins-diff 200
+
+                    :min-hourly-wage 5
                     :max-hourly-wage 205
                     :hourly-wage-inc 5})
 
