@@ -15,7 +15,7 @@
 (def medicare-rate 0.030)
 (def soc-sec-salary-cutoff 113700)
 
-(def hourly-wage-inc 5)
+(def hourly-wage-step 5)
 
 (def input-labels [{:key :hours-per-week
                     :label "Hours per week"}
@@ -65,8 +65,8 @@
                                    :currency "USD"
                                    :maximumFractionDigits 0})))
 
-(defn round-up-to-wage-inc [n]
-  (* hourly-wage-inc (Math/ceil (/ n hourly-wage-inc))))
+(defn round-up-to-next-wage-step [n]
+  (* hourly-wage-step (Math/ceil (/ n hourly-wage-step))))
 
 (defn row [{:keys [hourly-wage
                    hours-per-week
@@ -100,9 +100,9 @@
       [:th "If contractor gets W-2, FTE salary equiv is:"]
       [:th "If contractor gets 1099, FTE salary equiv is:"]]]
     [:tbody
-     (let [wage-range (range (round-up-to-wage-inc min-hourly-wage)
+     (let [wage-range (range (round-up-to-next-wage-step min-hourly-wage)
                              (inc max-hourly-wage)
-                             hourly-wage-inc)]
+                             hourly-wage-step)]
        (map #(row {:hourly-wage %
                    :hours-per-week hours-per-week
                    :weeks-off weeks-off
