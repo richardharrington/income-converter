@@ -15,6 +15,7 @@
 (def medicare-rate 0.030)
 (def soc-sec-salary-cutoff 113700)
 
+(def max-hourly-wage 200)
 (def hourly-wage-step 5)
 
 (def inputs [{:key :hours-per-week
@@ -26,10 +27,10 @@
              {:key :health-ins-diff
               :type "text"
               :label "Monthly health insurance diff"}
-             {:key :min-hourly-wage
+             {:key :low-hourly-wage
               :type "range"
               :label "First hourly wage in table"}
-             {:key :max-hourly-wage
+             {:key :high-hourly-wage
               :type "range"
               :label "Last hourly wage in table"}])
 
@@ -39,8 +40,8 @@
                    :weeks-off 4
                    :health-ins-diff 200
 
-                   :min-hourly-wage 5
-                   :max-hourly-wage 205})
+                   :low-hourly-wage 30
+                   :high-hourly-wage 45})
 
 (defn initial-state
   "Recover from localStorage or use default, but in either case
@@ -107,8 +108,8 @@
                           weeks-off
                           health-ins-diff
 
-                          min-hourly-wage
-                          max-hourly-wage]}]
+                          low-hourly-wage
+                          high-hourly-wage]}]
   (sab/html
    [:table.main-table
     [:thead
@@ -119,8 +120,8 @@
       [:th "If contractor gets W-2, FTE salary equiv is:"]
       [:th "If contractor gets 1099, FTE salary equiv is:"]]]
     [:tbody
-     (let [wage-range (range min-hourly-wage
-                             (inc max-hourly-wage)
+     (let [wage-range (range low-hourly-wage
+                             (inc high-hourly-wage)
                              hourly-wage-step)]
        (map #(row {:hourly-wage %
                    :hours-per-week hours-per-week
@@ -136,7 +137,7 @@
       [:input {:value val
                :type type
                :min 0
-               :max 300
+               :max max-hourly-wage
                :step 5
                :title val
                :on-change #(update! (aget % "target" "value"))}]])))
