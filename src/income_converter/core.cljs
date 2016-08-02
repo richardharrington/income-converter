@@ -17,16 +17,21 @@
 
 (def hourly-wage-step 5)
 
-(def input-labels [{:key :hours-per-week
-                    :label "Hours per week"}
-                   {:key :weeks-off
-                    :label "Weeks off"}
-                   {:key :health-ins-diff
-                    :label "Differential in monthly health insurance payment"}
-                   {:key :min-hourly-wage
-                    :label "Minimum hourly wage in table"}
-                   {:key :max-hourly-wage
-                    :label "Maximum hourly wage"}])
+(def inputs [{:key :hours-per-week
+              :type "text"
+              :label "Hours per week"}
+             {:key :weeks-off
+              :type "text"
+              :label "Weeks off"}
+             {:key :health-ins-diff
+              :type "text"
+              :label "Monthly health insurance diff"}
+             {:key :min-hourly-wage
+              :type "range"
+              :label "First hourly wage in table"}
+             {:key :max-hourly-wage
+              :type "range"
+              :label "Last hourly wage in table"}])
 
 ;; user-alterable state
 
@@ -82,9 +87,6 @@
                                    :currency "USD"
                                    :maximumFractionDigits 0})))
 
-(defn round-up-to-next-wage-step [n]
-  (* hourly-wage-step (Math/ceil (/ n hourly-wage-step))))
-
 (defn row [{:keys [hourly-wage
                    hours-per-week
                    weeks-off
@@ -108,7 +110,7 @@
                           min-hourly-wage
                           max-hourly-wage]}]
   (sab/html
-   [:table
+   [:table.main-table
     [:thead
      [:tr
       [:th "hourly wage"]
@@ -117,7 +119,7 @@
       [:th "If contractor gets W-2, FTE salary equiv is:"]
       [:th "If contractor gets 1099, FTE salary equiv is:"]]]
     [:tbody
-     (let [wage-range (range (round-up-to-next-wage-step min-hourly-wage)
+     (let [wage-range (range min-hourly-wage
                              (inc max-hourly-wage)
                              hourly-wage-step)]
        (map #(row {:hourly-wage %
@@ -126,26 +128,33 @@
                    :health-ins-diff health-ins-diff})
             wage-range))]]))
 
-(defn input-row [{:keys [val label update!]}]
-  (sab/html
-   [:div.input-row
-    [:input {:value val
-             :on-change #(update! (aget % "target" "value"))}]
-    [:label label]]))
+(defn input-row [{:keys [val label type update!]}]
+  (let [label-text (str label (when (= type "range") (str ": " val)))]
+    (sab/html
+     [:div.input-row
+      [:label label-text]
+      [:input {:value val
+               :type type
+               :min 0
+               :max 300
+               :step 5
+               :title val
+               :on-change #(update! (aget % "target" "value"))}]])))
 
-(defn input-component [input-vals]
+(defn input-section [input-vals]
   (sab/html
    [:div.input-section
-    (for [{:keys [key label]} input-labels]
+    (for [{:keys [key type label]} inputs]
       (input-row {:val (get input-vals key)
                   :label label
+                  :type type
                   :update! (partial update-app-state! key)}))]))
 
 (defn page [{:keys [data display]}]
   (sab/html
    [:div.page
-    [:h1 "Income conversion chart"]
-    (input-component display)
+    [:h1.main-title "Income conversion chart"]
+    (input-section display)
     (main-table data)]))
 
 (defn render []
