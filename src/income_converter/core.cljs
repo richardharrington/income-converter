@@ -1,6 +1,7 @@
 (ns income-converter.core
   (:require
    [cljsjs.react]
+   [cljs.reader :as reader]
    [sablono.core :as sab :include-macros true]
    [cljs.core.async :refer [<! chan sliding-buffer put! close! timeout]])
   (:require-macros
@@ -29,16 +30,31 @@
 
 ;; user-alterable state
 
-(def default-state {:hours-per-week 30
-                    :weeks-off 4
-                    :health-ins-diff 200
+(def default-data {:hours-per-week 30
+                   :weeks-off 4
+                   :health-ins-diff 200
 
-                    :min-hourly-wage 5
-                    :max-hourly-wage 205})
+                   :min-hourly-wage 5
+                   :max-hourly-wage 205})
 
-(defn initial-state []
-  {:data default-state
-   :display default-state})
+(defn initial-state
+  "Recover from localStorage or use default, but in either case
+   use the data values for both data and display (no need to persist
+   messiness and user errors through a refresh)"
+  []
+  (let [app-data
+        (if-let [stored-edn (. js/localStorage (getItem "app-data"))]
+          (reader/read-string stored-edn)
+          default-data)]
+    {:data app-data
+     :display app-data}))
+
+(defn clear-app-data
+  "a way to clear app data, for dev only"
+  []
+  (. js/localStorage (removeItem "app-data")))
+
+#_(clear-app-data)
 
 (defonce app-state (atom (initial-state)))
 
@@ -123,7 +139,8 @@
                             (fn [key val]
                               (swap! app-state assoc-in [:display key] val)
                               (when-let [n (input->int val)]
-                                (swap! app-state assoc-in [:data key] n))
+                                (swap! app-state assoc-in [:data key] n)
+                                (. js/localStorage (setItem "app-data" (:data @app-state))))
                               (render))))
     (main-table data)]))
 
