@@ -11,12 +11,19 @@
 
 ;; define your app data so that it doesn't get over-written on reload
 
-(def initial-state {:hours-per-week 30
-                    :weeks-off 4
-                    :monthly-health-ins-diff 200
+(def initial-state {:data    {:hours-per-week 30
+                              :weeks-off 4
+                              :monthly-health-ins-diff 200
 
-                    :min-hourly-wage 5
-                    :max-hourly-wage 205})
+                              :min-hourly-wage 5
+                              :max-hourly-wage 205}
+
+                    :display {:hours-per-week 30
+                              :weeks-off 4
+                              :monthly-health-ins-diff 200
+
+                              :min-hourly-wage 5
+                              :max-hourly-wage 205}})
 
 (defonce app-state (atom initial-state))
 
@@ -85,7 +92,6 @@
 
                                min-hourly-wage
                                max-hourly-wage]}]
-  (println hours-per-week)
   (sab/html
    [:div.input-section
     (map input-row [{:val hours-per-week
@@ -112,17 +118,17 @@
 
 (declare render)
 
-(defn page [props]
+(defn page [{:keys [data display]}]
   (sab/html
    [:div.page
     [:h1 "Income conversion chart"]
-    (input-component (assoc props :update-app-state!
+    (input-component (assoc display :update-app-state!
                             (fn [key val]
+                              (swap! app-state assoc-in [:display key] val)
                               (when-let [n (input->int val)]
-                                (swap! app-state assoc key n)
-                                (render)))))
-    (main-table props)]))
-
+                                (swap! app-state assoc-in [:data key] n))
+                              (render))))
+    (main-table data)]))
 
 (defn render []
   (println @app-state)
