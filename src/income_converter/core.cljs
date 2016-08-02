@@ -40,6 +40,9 @@
                                    :currency "USD"
                                    :maximumFractionDigits 0})))
 
+(defn round-up-to-wage-inc [n]
+  (* hourly-wage-inc (Math/ceil (/ n hourly-wage-inc))))
+
 (defn row [{:keys [hourly-wage
                    hours-per-week
                    weeks-off
@@ -72,11 +75,14 @@
       [:th "If contractor gets W-2, FTE salary equiv is:"]
       [:th "If contractor gets 1099, FTE salary equiv is:"]]]
     [:tbody
-     (map #(row {:hourly-wage %
-                 :hours-per-week hours-per-week
-                 :weeks-off weeks-off
-                 :monthly-health-ins-diff monthly-health-ins-diff})
-          (range min-hourly-wage max-hourly-wage hourly-wage-inc))]]))
+     (let [wage-range (range (round-up-to-wage-inc min-hourly-wage)
+                             (inc max-hourly-wage)
+                             hourly-wage-inc)]
+       (map #(row {:hourly-wage %
+                   :hours-per-week hours-per-week
+                   :weeks-off weeks-off
+                   :monthly-health-ins-diff monthly-health-ins-diff})
+            wage-range))]]))
 
 (defn input-row [{:keys [val display update!]}]
   (sab/html
