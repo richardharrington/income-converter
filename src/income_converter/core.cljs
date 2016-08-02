@@ -39,8 +39,8 @@
 
 (defn initial-state
   "Recover from localStorage or use default, but in either case
-   use the data values for both data and display (no need to persist
-   messiness and user errors through a refresh)"
+   use the 'data' values for both 'data' and 'display' (no need
+   to persist messiness and user errors through a refresh)"
   []
   (let [app-data
         (if-let [stored-edn (. js/localStorage (getItem "app-data"))]
@@ -58,6 +58,23 @@
 
 (defonce app-state (atom (initial-state)))
 
+(defn input->int [input]
+  (if (= input "")
+    0
+    (js/parseInt input)))
+
+(declare render)
+
+(defn update-app-state!
+  "updates the display-state with what the person
+   actually typed, but does some validation and
+   transformation of what it stores as data-state"
+  [key val]
+  (swap! app-state assoc-in [:display key] val)
+  (when-let [n (input->int val)]
+    (swap! app-state assoc-in [:data key] n)
+    (. js/localStorage (setItem "app-data" (:data @app-state))))
+  (render))
 
 
 (defn dollar-str [n]
@@ -112,10 +129,11 @@
 (defn input-row [{:keys [val label update!]}]
   (sab/html
    [:div.input-row
-    [:input {:value val :on-change #(update! (aget % "target" "value"))}]
+    [:input {:value val
+             :on-change #(update! (aget % "target" "value"))}]
     [:label label]]))
 
-(defn input-component [{:keys [update-app-state!] :as input-vals}]
+(defn input-component [input-vals]
   (sab/html
    [:div.input-section
     (for [{:keys [key label]} input-labels]
@@ -123,25 +141,11 @@
                   :label label
                   :update! (partial update-app-state! key)}))]))
 
-
-(defn input->int [input]
-  (if (= input "")
-    0
-    (js/parseInt input)))
-
-(declare render)
-
 (defn page [{:keys [data display]}]
   (sab/html
    [:div.page
     [:h1 "Income conversion chart"]
-    (input-component (assoc display :update-app-state!
-                            (fn [key val]
-                              (swap! app-state assoc-in [:display key] val)
-                              (when-let [n (input->int val)]
-                                (swap! app-state assoc-in [:data key] n)
-                                (. js/localStorage (setItem "app-data" (:data @app-state))))
-                              (render))))
+    (input-component display)
     (main-table data)]))
 
 (defn render []
