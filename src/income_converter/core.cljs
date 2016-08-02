@@ -8,32 +8,41 @@
 
 (enable-console-print!)
 
-
-;; define your app data so that it doesn't get over-written on reload
-
-(def initial-state {:data    {:hours-per-week 30
-                              :weeks-off 4
-                              :monthly-health-ins-diff 200
-
-                              :min-hourly-wage 5
-                              :max-hourly-wage 205}
-
-                    :display {:hours-per-week 30
-                              :weeks-off 4
-                              :monthly-health-ins-diff 200
-
-                              :min-hourly-wage 5
-                              :max-hourly-wage 205}})
-
-(defonce app-state (atom initial-state))
-
-
+;; constants
 
 (def soc-sec-rate 0.123)
 (def medicare-rate 0.030)
 (def soc-sec-salary-cutoff 113700)
 
 (def hourly-wage-inc 5)
+
+(def input-labels [{:key :hours-per-week
+                    :label "Hours per week"}
+                   {:key :weeks-off
+                    :label "Weeks off"}
+                   {:key :health-ins-diff
+                    :label "Differential in monthly health insurance payment"}
+                   {:key :min-hourly-wage
+                    :label "Minimum hourly wage in table"}
+                   {:key :max-hourly-wage
+                    :label "Maximum hourly wage"}])
+
+;; user-alterable state
+
+(def default-state {:hours-per-week 30
+                    :weeks-off 4
+                    :health-ins-diff 200
+
+                    :min-hourly-wage 5
+                    :max-hourly-wage 205})
+
+(defn initial-state []
+  {:data default-state
+   :display default-state})
+
+(defonce app-state (atom (initial-state)))
+
+
 
 (defn dollar-str [n]
   (. n (toLocaleString #js [] #js {:style "currency"
@@ -46,10 +55,10 @@
 (defn row [{:keys [hourly-wage
                    hours-per-week
                    weeks-off
-                   monthly-health-ins-diff]}]
+                   health-ins-diff]}]
   (let [weekly-income (* hourly-wage hours-per-week)
         yearly-income (* weekly-income (- 52 weeks-off))
-        if-w2 (- yearly-income (* monthly-health-ins-diff 12))
+        if-w2 (- yearly-income (* health-ins-diff 12))
         soc-sec-tax (* (min yearly-income soc-sec-salary-cutoff)
                        (/ soc-sec-rate 2))
         medicare-tax (* yearly-income (/ medicare-rate 2))
@@ -61,7 +70,7 @@
 
 (defn main-table [{:keys [hours-per-week
                           weeks-off
-                          monthly-health-ins-diff
+                          health-ins-diff
 
                           min-hourly-wage
                           max-hourly-wage]}]
@@ -81,40 +90,22 @@
        (map #(row {:hourly-wage %
                    :hours-per-week hours-per-week
                    :weeks-off weeks-off
-                   :monthly-health-ins-diff monthly-health-ins-diff})
+                   :health-ins-diff health-ins-diff})
             wage-range))]]))
 
-(defn input-row [{:keys [val display update!]}]
+(defn input-row [{:keys [val label update!]}]
   (sab/html
    [:div.input-row
     [:input {:value val :on-change #(update! (aget % "target" "value"))}]
-    [:label display]]))
+    [:label label]]))
 
-(defn input-component [{:keys [update-app-state!
-
-                               hours-per-week
-                               weeks-off
-                               monthly-health-ins-diff
-
-                               min-hourly-wage
-                               max-hourly-wage]}]
+(defn input-component [{:keys [update-app-state!] :as input-vals}]
   (sab/html
    [:div.input-section
-    (map input-row [{:val hours-per-week
-                     :display "Hours per week"
-                     :update! (partial update-app-state! :hours-per-week)}
-                    {:val weeks-off
-                     :display "Weeks off"
-                     :update! (partial update-app-state! :weeks-off)}
-                    {:val monthly-health-ins-diff
-                     :display "Differential in monthly health insurance payment"
-                     :update! (partial update-app-state! :monthly-health-ins-diff)}
-                    {:val min-hourly-wage
-                     :display "Minimum hourly wage in table"
-                     :update! (partial update-app-state! :min-hourly-wage)}
-                    {:val max-hourly-wage
-                     :display "Maximum hourly wage"
-                     :update! (partial update-app-state! :max-hourly-wage)}])]))
+    (for [{:keys [key label]} input-labels]
+      (input-row {:val (get input-vals key)
+                  :label label
+                  :update! (partial update-app-state! key)}))]))
 
 
 (defn input->int [input]
