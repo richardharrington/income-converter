@@ -152,6 +152,7 @@
   (sab/html
    [:div.page
     [:h1.main-title "Income conversion chart"]
+    [:h4.sub-hed "A glorified excel spreadsheet to help you figure out how much you're REALLY making on that hourly contracting gig"]
     (input-section update-app-state! display)
     (main-table data)]))
 

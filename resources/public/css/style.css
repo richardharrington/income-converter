@@ -4,8 +4,12 @@ html, html * {
   font-family: 'Arimo', sans-serif;
 }
 
-.main-title {
-  margin-bottom: 25px;
+.main-table {
+  margin-bottom: 0;
+}
+
+.sub-hed {
+  margin-bottom: 35px;
 }
 
 .main-table {
