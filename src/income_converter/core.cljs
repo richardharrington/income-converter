@@ -111,9 +111,9 @@
    [:table.main-table
     [:thead
      [:tr
-      [:th "hourly wage"]
-      [:th "weekly income"]
-      [:th "yearly income"]
+      [:th "Hourly wage"]
+      [:th "Weekly income"]
+      [:th "Yearly income"]
       [:th "If contractor gets W-2, FTE salary equiv is:"]
       [:th "If contractor gets 1099, FTE salary equiv is:"]]]
     [:tbody
