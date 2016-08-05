@@ -2,6 +2,7 @@
   (:require
    [cljsjs.react]
    [cljs.reader :as reader]
+   [goog.i18n.NumberFormat]
    [sablono.core :as sab :include-macros true]
    [cljs.core.async :refer [<! chan sliding-buffer put! close! timeout]])
   (:require-macros
@@ -77,10 +78,14 @@
     0
     (js/parseInt input)))
 
-(defn dollar-str [n]
-  (. n (toLocaleString #js [] #js {:style "currency"
-                                   :currency "USD"
-                                   :maximumFractionDigits 0})))
+(defn dollar-str
+  "round to the nearest dollar, no decimal places"
+  [n]
+  (let [with-decimal
+        (.format (goog.i18n.NumberFormat.
+                  (.-CURRENCY goog.i18n.NumberFormat.Format)) n)]
+    (subs with-decimal 0 (- (count with-decimal) 3))))
+
 
 
 ;; react components
