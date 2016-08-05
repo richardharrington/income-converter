@@ -3,10 +3,7 @@
    [cljsjs.react]
    [cljs.reader :as reader]
    [goog.i18n.NumberFormat]
-   [sablono.core :as sab :include-macros true]
-   [cljs.core.async :refer [<! chan sliding-buffer put! close! timeout]])
-  (:require-macros
-   [cljs.core.async.macros :refer [go-loop go]]))
+   [sablono.core :as sab :include-macros true]))
 
 (enable-console-print!)
 
