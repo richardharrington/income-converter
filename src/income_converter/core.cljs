@@ -30,10 +30,10 @@
               :label "Monthly health insurance diff"}
              {:key :low-hourly-wage
               :type "range"
-              :label "First hourly wage in table"}
+              :label "Minimum hourly wage"}
              {:key :high-hourly-wage
               :type "range"
-              :label "Last hourly wage in table"}])
+              :label "Maximum hourly wage"}])
 
 
 ;; user-alterable state
@@ -64,7 +64,7 @@
 
 #_(clear-app-data)
 
-(defonce app-state (atom (initial-state)))
+(defonce app-state (atom (assoc (initial-state) :show-instructions? false)))
 
 
 ;; helpers
@@ -119,8 +119,8 @@
       [:th "Hourly wage"]
       [:th "Weekly income"]
       [:th "Yearly income"]
-      [:th "If contractor gets W-2, FTE salary equiv is:"]
-      [:th "If contractor gets 1099, FTE salary equiv is:"]]]
+      [:th "If you'll be paid as an employee on a W-2, FTE salary equiv is:"]
+      [:th "If you'll be an independent contractor, FTE salary equiv is:"]]]
     [:tbody
      (let [wage-range (range low-hourly-wage
                              (inc high-hourly-wage)
@@ -153,16 +153,35 @@
                   :type type
                   :update! (partial update-app-state! key)}))]))
 
-(defn page [update-app-state! {:keys [data display]}]
+(defn header [toggle-show-instructions! show-instructions?]
+  (sab/html
+   [:div.header
+    [:h1.main-title "Income conversion chart"]
+    [:div.instructions-toggle {:on-click toggle-show-instructions!}
+     (str "[" (if show-instructions? "hide" "show") " instructions]")]
+    [:div.instructions {:class (when show-instructions? "show")}
+     [:h2.sub-hed "A glorified excel spreadsheet for comparing hourly gigs to salaried jobs with benefits"]
+     [:h4.sub-hed "When you're looking at hourly gigs and you want to find out what the salaried equivalents are -- that is, the salary you'd have to make in order to have the same amount of money left over after paying for taxes and health insurance -- just type in the following:"]
+     [:ol
+      [:li "The amount of hours you expect to work every week"]
+      [:li "The total number of weeks you expect to take off each year"]
+      [:li "The estimated health insurance subsidy: the difference between what you'd expect to pay for insurance on the open market, and what you'd expect to pay if you had an employer who was covering most of it"]]
+     [:h4.sub-hed "The app will then take care of calculating Social Security and Medicare payroll taxes for those who are working as independent contractors and not W-2 employees."]
+     [:h4.sub-hed [:em "Note: This is a work in progress. Among the many things not taken into account yet are Medicaid and Affordable Care Act subsidies below a certain income thresholds, and overtime pay for hourly employees."]]]]))
+
+(defn page [update-app-state! toggle-show-instructions! {:keys [show-instructions? data display]}]
   (sab/html
    [:div.page
-    [:h1.main-title "Income conversion chart"]
-    [:h4.sub-hed "A glorified excel spreadsheet to help you figure out how much you're REALLY making on that hourly contracting gig"]
+    (header toggle-show-instructions! show-instructions?)
     (input-section update-app-state! display)
     (main-table data)]))
 
 
 ;; rendering and updating stuff
+
+;; TODO: abstract out UI updating, so we don't have these two versions
+;; that look almost the same but not; for updating numbers and updating
+;; the show/hide instructions button.
 
 (defn make-app-state-updater
   "takes a rendering function and returns a function that
@@ -177,10 +196,17 @@
       (. js/localStorage (setItem "app-data" (:data @app-state))))
     (render)))
 
+(defn make-show-hide-instructions-state-updater
+  [render]
+  (fn []
+    (swap! app-state update :show-instructions? not)
+    (render)))
+
 (defn render []
   (let [update-app-state! (make-app-state-updater render)
+        toggle-show-instructions! (make-show-hide-instructions-state-updater render)
         node (.getElementById js/document "app")]
-    (.render js/React (page update-app-state! @app-state) node)))
+    (.render js/React (page update-app-state! toggle-show-instructions! @app-state) node)))
 
 (render)
 

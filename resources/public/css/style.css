@@ -4,12 +4,38 @@ html, html * {
   font-family: 'Arimo', sans-serif;
 }
 
-.main-table {
-  margin-bottom: 0;
+body {
+  background-color: #eaeaea;
 }
 
-.sub-hed {
-  margin-bottom: 35px;
+
+.header {
+  margin-bottom: 25px;
+  max-width: 800px;
+}
+
+.main-title {
+  margin-bottom: 5px;
+}
+
+.instructions-toggle {
+  font-size: 0.8em;
+  color: green;
+  cursor: pointer;
+}
+
+.instructions {
+  max-height: 0;
+  transition: max-height 0.35s;
+  overflow: hidden;
+}
+
+.instructions.show {
+  max-height: 1000px;
+}
+
+.main-table {
+  margin-bottom: 0;
 }
 
 .main-table {
@@ -19,10 +45,12 @@ html, html * {
 
 table {
   border-collapse: collapse;
+  border: 2px solid green;
+  background-color: white;
 }
 
 th, td {
-  border: 1px solid tomato;
+  border: 1px solid green;
 }
 
 th {
