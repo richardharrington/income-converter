@@ -1,0 +1,90 @@
+/* some style */
+
+html, html * {
+  font-family: 'Arimo', sans-serif;
+}
+
+body {
+  background-color: #eaeaea;
+}
+
+
+.header {
+  margin-bottom: 25px;
+  max-width: 800px;
+}
+
+.main-title {
+  margin-bottom: 5px;
+}
+
+.instructions-toggle {
+  font-size: 0.8em;
+  color: green;
+  cursor: pointer;
+}
+
+.instructions {
+  max-height: 0;
+  transition: max-height 0.35s;
+  overflow: hidden;
+}
+
+.instructions.show {
+  max-height: 1000px;
+}
+
+.main-table {
+  margin-bottom: 0;
+}
+
+.main-table {
+  width: 500px;
+  display: inline-block;
+}
+
+table {
+  border-collapse: collapse;
+  border: 2px solid green;
+  background-color: white;
+}
+
+th, td {
+  border: 1px solid green;
+}
+
+th {
+  padding: 10px;
+}
+
+td {
+  padding: 5px 10px;
+  text-align: right;
+  font-family: 'Cutive Mono', monospace;
+}
+
+.input-section {
+  width: 235px;
+  margin-bottom: 20px;
+  float: left;
+}
+
+.input-row {
+  margin-bottom: 15px;
+}
+
+.input-row input {
+  font-size: 1.1em;
+  margin-top: 5px;
+  width: 192px;
+}
+
+.input-row label {
+  font-size: 0.9em;
+  clear: both;
+  display: block;
+}
+
+.input-row input[type="range"] {
+  width: 195px;
+}
