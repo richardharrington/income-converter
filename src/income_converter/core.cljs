@@ -167,7 +167,7 @@
       [:li "The total number of weeks you expect to take off each year"]
       [:li "The estimated health insurance subsidy: the difference between what you'd expect to pay for insurance on the open market, and what you'd expect to pay if you had an employer who was covering most of it"]]
      [:h4.sub-hed "The app will then take care of calculating Social Security and Medicare payroll taxes for those who are working as independent contractors and not W-2 employees."]
-     [:h4.sub-hed [:em "Note: This is a work in progress. Among the many things not taken into account yet are Medicaid and Affordable Care Act subsidies below a certain income thresholds, and overtime pay for hourly employees."]]]]))
+     [:h4.sub-hed [:em "Note: This is a work in progress. Among the many things not taken into account yet are Medicaid and Affordable Care Act subsidies below certain income thresholds, and overtime pay for hourly employees."]]]]))
 
 (defn page [update-app-state! toggle-show-instructions! {:keys [show-instructions? data display]}]
   (sab/html
