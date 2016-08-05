@@ -34,7 +34,6 @@
               :type "range"
               :label "Last hourly wage in table"}])
 
-
 ;; user-alterable state
 
 (def default-data {:hours-per-week 30
@@ -65,25 +64,29 @@
 
 (defonce app-state (atom (initial-state)))
 
-
-;; helpers
-
-(defn input->int
-  "This function is parseInt, except that the empty string
-   -- meaning the user deleted everything in the box --
-   counts as 0."
-  [input]
+(defn input->int [input]
   (if (= input "")
     0
     (js/parseInt input)))
+
+(declare render)
+
+(defn update-app-state!
+  "updates the display-state with what the person
+   actually typed, but does some validation and
+   transformation of what it stores as data-state"
+  [key val]
+  (swap! app-state assoc-in [:display key] val)
+  (when-let [n (input->int val)]
+    (swap! app-state assoc-in [:data key] n)
+    (. js/localStorage (setItem "app-data" (:data @app-state))))
+  (render))
+
 
 (defn dollar-str [n]
   (. n (toLocaleString #js [] #js {:style "currency"
                                    :currency "USD"
                                    :maximumFractionDigits 0})))
-
-
-;; react components
 
 (defn row [{:keys [hourly-wage
                    hours-per-week
@@ -139,49 +142,36 @@
                :title val
                :on-change #(update! (aget % "target" "value"))}]])))
 
-(defn input-section [update-app-state! display-vals]
+(defn input-section [input-vals]
   (sab/html
    [:div.input-section
     (for [{:keys [key type label]} inputs]
-      (input-row {:val (get display-vals key)
+      (input-row {:val (get input-vals key)
                   :label label
                   :type type
                   :update! (partial update-app-state! key)}))]))
 
-(defn page [update-app-state! {:keys [data display]}]
+(defn page [{:keys [data display]}]
   (sab/html
    [:div.page
     [:h1.main-title "Income conversion chart"]
     [:h4.sub-hed "A glorified excel spreadsheet to help you figure out how much you're REALLY making on that hourly contracting gig"]
-    (input-section update-app-state! display)
+    (input-section display)
     (main-table data)]))
 
-
-;; rendering and updating stuff
-
-(defn make-app-state-updater
-  "takes a rendering function and returns a function that
-   uses what the person actually typed to update the
-   display-state, but does some validation and
-   transformation of what it stores as data-state"
-  [render]
-  (fn [key val]
-    (swap! app-state assoc-in [:display key] val)
-    (when-let [n (input->int val)]
-      (swap! app-state assoc-in [:data key] n)
-      (. js/localStorage (setItem "app-data" (:data @app-state))))
-    (render)))
-
 (defn render []
-  (let [update-app-state! (make-app-state-updater render)
-        node (.getElementById js/document "app")]
-    (.render js/React (page update-app-state! @app-state) node)))
+  (println @app-state)
+
+  (let [node (.getElementById js/document "app")]
+    (.render js/React (page @app-state) node)))
 
 (render)
 
 
 
-;; not currently used
-
 (defn on-js-reload []
-  #_(reset! app-state (initial-state)))
+  #_(reset! app-state initial-state)
+  ;; optionally touch your app-state to force rerendering depending on
+  ;; your application
+  ;; (swap! app-state update-in [:__figwheel_counter] inc)
+  )
