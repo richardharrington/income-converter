@@ -7,6 +7,27 @@
 
 (enable-console-print!)
 
+;; helpers
+
+(defn input->int
+  "This function is parseInt, except that the empty string
+   -- meaning the user deleted everything in the box --
+   counts as 0."
+  [input]
+  (if (= input "")
+    0
+    (js/parseInt input)))
+
+(defn dollar-str
+  "round to the nearest dollar, no decimal places"
+  [n]
+  (let [with-decimal
+        (.format (goog.i18n.NumberFormat.
+                   (.-CURRENCY goog.i18n.NumberFormat.Format)) n)]
+    (subs with-decimal 0 (- (count with-decimal) 3))))
+
+
+
 ;; constants
 
 (def soc-sec-rate 0.123)
@@ -63,25 +84,18 @@
 
 (defonce app-state (atom (assoc (initial-state) :show-instructions? false)))
 
+(defn update-app-state!
+  "uses what the person actually typed to update the
+   display-state, but does some validation and
+   transformation of what it stores as data-state"
+  [key val]
+  (swap! app-state assoc-in [:display key] val)
+  (when-let [n (input->int val)]
+    (swap! app-state assoc-in [:data key] n)
+    (. js/localStorage (setItem "app-data" (:data @app-state)))))
 
-;; helpers
-
-(defn input->int
-  "This function is parseInt, except that the empty string
-   -- meaning the user deleted everything in the box --
-   counts as 0."
-  [input]
-  (if (= input "")
-    0
-    (js/parseInt input)))
-
-(defn dollar-str
-  "round to the nearest dollar, no decimal places"
-  [n]
-  (let [with-decimal
-        (.format (goog.i18n.NumberFormat.
-                  (.-CURRENCY goog.i18n.NumberFormat.Format)) n)]
-    (subs with-decimal 0 (- (count with-decimal) 3))))
+(defn toggle-show-instructions! []
+  (swap! app-state update :show-instructions? not))
 
 
 
@@ -141,7 +155,7 @@
                :title val
                :on-change #(update! (.. % -target -value))}]])))
 
-(defn input-section [update-app-state! display-vals]
+(defn input-section [display-vals]
   (sab/html
    [:div.input-section
     (for [{:keys [key type label]} inputs]
@@ -150,7 +164,7 @@
                   :type type
                   :update! (partial update-app-state! key)}))]))
 
-(defn header [toggle-show-instructions! show-instructions?]
+(defn header [show-instructions?]
   (sab/html
    [:div.header
     [:h1.main-title "Income conversion chart"]
@@ -166,36 +180,19 @@
      [:h4.sub-hed "The app will then take care of calculating Social Security and Medicare payroll taxes for those who are working as independent contractors and not W-2 employees."]
      [:h4.sub-hed [:em "Note: This is a work in progress. Among the many things not taken into account yet are Medicaid and Affordable Care Act subsidies below certain income thresholds, and overtime pay for hourly employees."]]]]))
 
-(defn page [update-app-state! toggle-show-instructions! {:keys [show-instructions? data display]}]
+(defn page [{:keys [show-instructions? data display]}]
   (sab/html
    [:div.page
-    (header toggle-show-instructions! show-instructions?)
-    (input-section update-app-state! display)
+    (header show-instructions?)
+    (input-section display)
     (main-table data)]))
 
 
-;; rendering and updating stuff
-
-;; TODO: abstract out UI updating, so we don't have these two versions
-;; that look almost the same but not; for updating numbers and updating
-;; the show/hide instructions button.
-
-(defn update-app-state!
-  "uses what the person actually typed to update the
-   display-state, but does some validation and
-   transformation of what it stores as data-state"
-  [key val]
-  (swap! app-state assoc-in [:display key] val)
-  (when-let [n (input->int val)]
-    (swap! app-state assoc-in [:data key] n)
-    (. js/localStorage (setItem "app-data" (:data @app-state)))))
-
-(defn toggle-show-instructions! []
-  (swap! app-state update :show-instructions? not))
+;; render
 
 (defn render []
   (let [node (.getElementById js/document "app")]
-    (.render js/React (page update-app-state! toggle-show-instructions! @app-state) node)))
+    (.render js/React (page @app-state) node)))
 
 (render)
 
