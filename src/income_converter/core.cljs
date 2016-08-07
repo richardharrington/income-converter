@@ -139,7 +139,7 @@
                :max max-hourly-wage
                :step 5
                :title val
-               :on-change #(update! (aget % "target" "value"))}]])))
+               :on-change #(update! (.. % -target -value))}]])))
 
 (defn input-section [update-app-state! display-vals]
   (sab/html
