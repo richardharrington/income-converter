@@ -180,32 +180,26 @@
 ;; that look almost the same but not; for updating numbers and updating
 ;; the show/hide instructions button.
 
-(defn make-app-state-updater
-  "takes a rendering function and returns a function that
-   uses what the person actually typed to update the
+(defn update-app-state!
+  "uses what the person actually typed to update the
    display-state, but does some validation and
    transformation of what it stores as data-state"
-  [render]
-  (fn [key val]
-    (swap! app-state assoc-in [:display key] val)
-    (when-let [n (input->int val)]
-      (swap! app-state assoc-in [:data key] n)
-      (. js/localStorage (setItem "app-data" (:data @app-state))))
-    (render)))
+  [key val]
+  (swap! app-state assoc-in [:display key] val)
+  (when-let [n (input->int val)]
+    (swap! app-state assoc-in [:data key] n)
+    (. js/localStorage (setItem "app-data" (:data @app-state)))))
 
-(defn make-show-hide-instructions-state-updater
-  [render]
-  (fn []
-    (swap! app-state update :show-instructions? not)
-    (render)))
+(defn toggle-show-instructions! []
+  (swap! app-state update :show-instructions? not))
 
 (defn render []
-  (let [update-app-state! (make-app-state-updater render)
-        toggle-show-instructions! (make-show-hide-instructions-state-updater render)
-        node (.getElementById js/document "app")]
+  (let [node (.getElementById js/document "app")]
     (.render js/React (page update-app-state! toggle-show-instructions! @app-state) node)))
 
 (render)
+
+(add-watch app-state :rerender (fn [_ _ _ _] (render)))
 
 
 
