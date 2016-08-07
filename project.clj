@@ -1,6 +1,6 @@
 (defproject income-converter "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
-  :url "http://example.com/FIXME"
+  :description "a tool to compare hourly gigs with their full-time salary equivalents"
+  :url "https://richardharrington.github.io/income-converter"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
@@ -8,7 +8,7 @@
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha10"]
                  [org.clojure/clojurescript "1.9.89"]
-                 [cljsjs/react "0.13.3-1"]
+                 [cljsjs/react "15.3.0-0"]
                  [sablono "0.4.0"]]
 
   :plugins [[lein-figwheel "0.5.4-7"]
