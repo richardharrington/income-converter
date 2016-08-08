@@ -179,7 +179,7 @@
                   :type type
                   :update! (partial update-app-state! key)}))]))
 
-(defn header [show-instructions?]
+(defn header [{:keys [show-instructions?] :as props}]
   (sab/html
    [:div.header
     [:h1.main-title "Income conversion chart"]
@@ -195,19 +195,23 @@
      [:h4.sub-hed "The app will then take care of calculating Social Security and Medicare payroll taxes for those who are working as independent contractors and not W-2 employees."]
      [:h4.sub-hed [:em "Note: This is a work in progress. Among the many things not taken into account yet are Medicaid and Affordable Care Act subsidies below certain income thresholds, and overtime pay for hourly employees."]]]]))
 
-(defn page [{:keys [show-instructions? data display]}]
-  (sab/html
-   [:div.page
-    (header show-instructions?)
-    (input-section display)
-    (main-table data)]))
+
+
+(def Page
+  (component "Page"
+    (fn [{:keys [show-instructions? data display] :as props} _]
+      (sab/html
+        [:div.page
+         (header {:show-instructions? show-instructions?})
+         (input-section display)
+         (main-table data)]))))
 
 
 ;; render
 
 (defn render []
   (let [node (.getElementById js/document "app")]
-    (js/ReactDOM.render (page @app-state) node)))
+    (js/ReactDOM.render (element Page @app-state) node)))
 
 (render)
 
