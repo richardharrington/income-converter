@@ -8,8 +8,9 @@
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha10"]
                  [org.clojure/clojurescript "1.9.89"]
-                 [cljsjs/react "15.3.0-0"]
-                 [sablono "0.4.0"]]
+                 [cljsjs/react "15.2.1-1"]
+                 [cljsjs/react-dom "15.2.1-1"]
+                 [sablono "0.7.3"]]
 
   :plugins [[lein-figwheel "0.5.4-7"]
             [lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]

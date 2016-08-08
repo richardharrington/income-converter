@@ -192,7 +192,7 @@
 
 (defn render []
   (let [node (.getElementById js/document "app")]
-    (.render js/React (page @app-state) node)))
+    (js/ReactDOM.render (page @app-state) node)))
 
 (render)
 
