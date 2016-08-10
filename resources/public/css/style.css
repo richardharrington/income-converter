@@ -11,21 +11,28 @@ body {
 
 .header {
   margin-bottom: 25px;
-  max-width: 800px;
 }
 
 .main-title {
   margin-bottom: 5px;
 }
 
+
 .instructions-toggle {
   font-size: 0.8em;
-  color: green;
+  color: #008000;
   cursor: pointer;
+  float: left;
+}
+
+.instructions-toggle:hover {
+  color: #006000;
 }
 
 .instructions {
+  clear: both;
   max-height: 0;
+  max-width: 800px;
   transition: max-height 0.35s;
   overflow: hidden;
 }
@@ -45,12 +52,12 @@ body {
 
 table {
   border-collapse: collapse;
-  border: 2px solid green;
-  background-color: white;
+  border: 2px solid #008000;
+  background-color: #ffffff;
 }
 
 th, td {
-  border: 1px solid green;
+  border: 1px solid #008000;
 }
 
 th {

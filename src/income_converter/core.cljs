@@ -169,7 +169,7 @@
    [:div.header
     [:h1.main-title "Income conversion chart"]
     [:div.instructions-toggle {:on-click toggle-show-instructions!}
-     (str "[" (if show-instructions? "hide" "show") " instructions]")]
+     (str (if show-instructions? "hide" "show") " instructions")]
     [:div.instructions {:class (when show-instructions? "show")}
      [:h2.sub-hed "A glorified excel spreadsheet for comparing hourly gigs to salaried jobs with benefits"]
      [:h4.sub-hed "When you're looking at hourly gigs and you want to find out what the salaried equivalents are -- that is, the salary you'd have to make in order to have the same amount of money left over after paying for taxes and health insurance -- just type in the following:"]
