@@ -5,6 +5,7 @@
 /node_modules/
 /target/
 /out/
+/llm-specs/
 
 # tooling scratch
 .cpcache/
