@@ -103,6 +103,8 @@
               :type "range"
               :label "Maximum hourly wage"}])
 
+(def wage-slider-keys #{:low-hourly-wage :high-hourly-wage})
+
 
 ;; user-alterable state
 
@@ -133,12 +135,23 @@
                  (every? usable-number? (vals parsed)))
         parsed))))
 
+(defn uncross-wage-range
+  "A minimum above the maximum makes the wage range empty and the
+   table silently vanish. The sliders push each other apart on write,
+   but stored-app-data checks only that the values are numbers, so a
+   pair written before that existed -- or hand-edited -- still loads
+   crossed, and no handler ever runs on it."
+  [{:keys [low-hourly-wage high-hourly-wage] :as data}]
+  (if (and (number? low-hourly-wage) (number? high-hourly-wage))
+    (assoc data :high-hourly-wage (max low-hourly-wage high-hourly-wage))
+    data))
+
 (defn initial-state
   "Recover from localStorage or use default, but in either case
    use the 'data' values for both 'data' and 'display' (no need
    to persist messiness and user errors through a refresh)"
   []
-  (let [app-data (or (stored-app-data) default-data)]
+  (let [app-data (uncross-wage-range (or (stored-app-data) default-data))]
     {:data app-data
      :display app-data}))
 
@@ -151,6 +164,22 @@
 
 (defonce app-state (atom (assoc (initial-state) :show-instructions? false)))
 
+(defn push-other-slider
+  "Dragging one wage slider past the other pushes the other along, so
+   the crossed state is unreachable rather than merely recovered from.
+   Both :data and :display move, or the pushed slider would keep
+   rendering at its old position."
+  [state key n]
+  (let [other (if (= key :low-hourly-wage) :high-hourly-wage :low-hourly-wage)
+        crossed? (if (= key :low-hourly-wage)
+                   (> n (get-in state [:data other]))
+                   (< n (get-in state [:data other])))]
+    (if crossed?
+      (-> state
+          (assoc-in [:data other] n)
+          (assoc-in [:display other] n))
+      state)))
+
 (defn update-app-state!
   "uses what the person actually typed to update the
    display-state, but does some validation and
@@ -158,8 +187,14 @@
   [key val]
   (swap! app-state assoc-in [:display key] val)
   (when-let [n (input->number val)]
-    (swap! app-state assoc-in [:data key] n)
-    (. js/localStorage (setItem "app-data" (:data @app-state)))))
+    (swap! app-state
+           (fn [state]
+             (cond-> (assoc-in state [:data key] n)
+               (wage-slider-keys key) (push-other-slider key n))))
+    ;; pr-str rather than letting setItem coerce the map: cljs.reader
+    ;; reads this back on the next load, so the round trip is
+    ;; intentional and not a happy accident of how maps print.
+    (. js/localStorage (setItem "app-data" (pr-str (:data @app-state))))))
 
 (defn toggle-show-instructions! []
   (swap! app-state update :show-instructions? not))
@@ -238,9 +273,9 @@
 (defn row [row-input]
   (let [figures (row-figures row-input)]
     (sab/html
-     [:tr
+     [:tr {:key (:hourly-wage figures)}
       (for [column row-columns]
-        [:td (dollar-str (get figures column))])])))
+        [:td {:key (name column)} (dollar-str (get figures column))])])))
 
 (defn main-table [{:keys [hours-per-week
                           weeks-off
@@ -267,24 +302,33 @@
                    :health-ins-diff health-ins-diff})
             wage-range))]]))
 
-(defn input-row [{:keys [val label type update!]}]
-  (let [label-text (str label (when (= type "range") (str ": " val)))]
+(defn input-row [{:keys [id val label type update!]}]
+  (let [range? (= type "range")
+        label-text (str label (when range? (str ": " val)))]
     (sab/html
-     [:div.input-row
-      [:label label-text]
-      [:input {:value val
-               :type type
-               :min 0
-               :max max-hourly-wage
-               :step 5
-               :title val
-               :on-change #(update! (.. % -target -value))}]])))
+     [:div.input-row {:key id}
+      [:label {:for id} label-text]
+      ;; min/max/step only where they mean something. The text boxes stay
+      ;; type="text" on purpose: React number inputs report value === ""
+      ;; for intermediate states like "7." in several browsers, and the
+      ;; empty string counts as 0, so a half-typed decimal would silently
+      ;; zero the field. The display/data split already does the
+      ;; validating.
+      [:input (cond-> {:id id
+                       :value val
+                       :type type
+                       :title val
+                       :on-change #(update! (.. % -target -value))}
+                range? (assoc :min 0
+                              :max max-hourly-wage
+                              :step hourly-wage-step))]])))
 
 (defn input-section [display-vals]
   (sab/html
    [:div.input-section
     (for [{:keys [key type label]} inputs]
-      (input-row {:val (get display-vals key)
+      (input-row {:id (name key)
+                  :val (get display-vals key)
                   :label label
                   :type type
                   :update! (partial update-app-state! key)}))]))
@@ -293,7 +337,8 @@
   (sab/html
    [:div.header
     [:h1.main-title "Income conversion chart"]
-    [:div.instructions-toggle {:on-click toggle-show-instructions!}
+    [:button.instructions-toggle {:type "button"
+                                  :on-click toggle-show-instructions!}
      (str (if show-instructions? "hide" "show") " instructions")]
     [:div.instructions {:class (when show-instructions? "show")}
      [:h2.sub-hed "A glorified excel spreadsheet for comparing hourly gigs to salaried jobs with benefits"]
@@ -318,7 +363,37 @@
 
 ;; render
 
-(defonce root (rdom/createRoot (.getElementById js/document "app")))
+(defn show-fatal-error!
+  "What onUncaughtError does instead of an error boundary. render
+   redraws the whole tree from the root, so there is no surviving UI
+   for a boundary to preserve -- React unmounts the root and leaves a
+   blank white page. Say something in its place.
+
+   This catches what React itself raises while rendering or committing;
+   the sablono/findDOMNode crash was one. An error thrown while
+   *building* the element tree happens in the add-watch callback,
+   before .render is even called, so it never reaches React and the
+   previous render stays on screen.
+
+   Deferred a tick because React is still emptying the container when
+   this fires."
+  [error]
+  (js/console.error "Uncaught render error:" error)
+  (js/setTimeout
+   (fn []
+     (when-let [el (.getElementById js/document "app")]
+       (set! (.-textContent el)
+             "Something went wrong drawing this page. Reloading may help.")))
+   0))
+
+;; createRoot must be called exactly once per DOM node; a second call on a
+;; hot reload makes React warn and drop the previous root. render is wired
+;; to :after-load, so a reload re-renders through this one -- which also
+;; means changes to these options need a page refresh in dev.
+(defonce root
+  (rdom/createRoot (.getElementById js/document "app")
+                   #js {:onUncaughtError (fn [error _info]
+                                           (show-fatal-error! error))}))
 
 (defn render []
   (.render root (page @app-state)))
@@ -326,10 +401,3 @@
 (render)
 
 (add-watch app-state :rerender (fn [_ _ _ _] (render)))
-
-
-
-;; not currently used
-
-(defn on-js-reload []
-  #_(reset! app-state (initial-state)))

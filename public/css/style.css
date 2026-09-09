@@ -76,11 +76,17 @@ body {
 }
 
 
+/* A button, not a div, so it is keyboard reachable and gets Enter/Space
+   for free. Stripped back to look the way the div did. */
 .instructions-toggle {
   font-size: 0.8em;
+  font-family: inherit;
   color: #008000;
   cursor: pointer;
   float: left;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .instructions-toggle:hover {

@@ -53,10 +53,6 @@ const scriptSrc = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
 if (!scriptSrc) die(`no <script src> in ${indexPath}`);
 const bundle = read(path.join(publicDir, scriptSrc), `bundle "${scriptSrc}"`);
 
-// React development builds warn about missing :key on the seqs the component
-// fns return. Pre-existing and out of scope; the production build strips it.
-const KNOWN_ADVISORIES = [/unique "key" prop/];
-
 const consoleMessages = [];
 const virtualConsole = new VirtualConsole();
 virtualConsole.on("jsdomError", (e) =>
@@ -168,19 +164,22 @@ check("$125 row, below every cap", row(0),
 check("$145 row, above every cap", row(4),
       is(["$145", "$4,350", "$208,800", "$206,365", "$192,155"]));
 
-check("app survived interaction", inputs().length, (n) => n === 5);
-check("unexpected console output",
-      consoleMessages.filter(
-        (m) => !KNOWN_ADVISORIES.some((re) => re.test(m))),
-      (m) => m.length === 0);
+// --- crossed sliders ------------------------------------------------------
 
-const advisories = consoleMessages.filter(
-  (m) => KNOWN_ADVISORIES.some((re) => re.test(m)));
-if (advisories.length) {
-  console.log(`note  ${advisories.length} known React dev-build advisor` +
-              `${advisories.length === 1 ? "y" : "ies"} ignored ` +
-              `(absent from release builds)`);
-}
+// A minimum above the maximum makes the wage range empty and the table
+// silently vanish, so dragging one slider past the other pushes it along
+// instead. Both directions.
+
+await type(3, "150");
+check("minimum pushes the maximum", inputs()[4]?.value, (v) => v === "150");
+check("pushed range still has a row", rows().length, (n) => n === 1);
+
+await type(4, "40");
+check("maximum pushes the minimum", inputs()[3]?.value, (v) => v === "40");
+check("pushed range still has a row", rows().length, (n) => n === 1);
+
+check("app survived interaction", inputs().length, (n) => n === 5);
+check("unexpected console output", consoleMessages, (m) => m.length === 0);
 
 window.close();
 
