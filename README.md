@@ -2,6 +2,8 @@
 
 A tool to help you compare jobs that pay hourly with no benefits, to full-time salaried positions.
 
+Live at [richardharrington.github.io/income-converter](https://richardharrington.github.io/income-converter/).
+
 ## Overview
 
 If you're thinking about taking any kind of gig where you get paid hourly with no benefits -- whether you'll be paid as an employee or given a 1099 -- you can use this tool to help you figure out what kind salary you'd have to be taking home in order to end up with the same amount of money, after accounting for the paid time off, the health insurance subsidy, and the payroll taxes (both Social Security and Medicare) that the hypothetical full-time job would be providing you.
@@ -17,9 +19,12 @@ All of this is put into a table, with sliders for the user to limit the hourly w
 Here is the heart of the code, containing the business logic (`dollar-str` formats a number as currency). It shows one column for what your full-time salary equivalent would be in the case where you're getting a W2 (in which case half of your payroll taxes are covered by your employer), and one in the case where you're getting a 1099:
 
 ```clojure
-(def soc-sec-rate 0.123)
-(def medicare-rate 0.030)
-(def soc-sec-salary-cutoff 113700)
+;; Combined employer + employee rates, halved at the point of use to model
+;; the employer's share. Tax year 2026; the SSA resets the Social Security
+;; wage base every January, so the cutoff needs revisiting annually.
+(def soc-sec-rate 0.124)
+(def medicare-rate 0.029)
+(def soc-sec-salary-cutoff 184500)
 
 (defn row [{:keys [hourly-wage
                    hours-per-week
@@ -36,34 +41,79 @@ Here is the heart of the code, containing the business logic (`dollar-str` forma
      [:tr
       (for [n [hourly-wage weekly-income yearly-income if-w2 if-1099]]
         [:td (dollar-str n)])])))
-
 ```
 
 ## Setup
 
-To get an interactive development environment run:
+ClojureScript built with [shadow-cljs](https://shadow-cljs.github.io/docs/UsersGuide.html),
+rendered with React 19 and [sablono](https://github.com/r0man/sablono). You need
+Node (the version in `.nvmrc`) and a JDK 21.
 
-    lein figwheel
+    npm install
 
-and open your browser at [localhost:3449](http://localhost:3449/).
-This will auto compile and send all changes to the browser without the
-need to reload. After the compilation process is complete, you will
-get a Browser Connected REPL. An easy way to try it is:
+For an interactive development environment with hot reload:
 
-    (js/alert "Am I connected?")
+    npm run dev
 
-and you should see an alert in the browser window.
+and open [localhost:3449](http://localhost:3449/). Both the ClojureScript and
+`public/css/style.css` reload on save.
 
-To clean all compiled files:
+For a production build:
 
-    lein clean
+    npm run release
 
-To create a production build run:
+That writes an `:advanced`-optimized, content-hashed bundle to `public/js/`. Open
+`public/index.html`, or serve `public/` -- everything is referenced by relative
+path, so it works from any location.
 
-    lein do clean, cljsbuild once min
+To check the built page actually renders:
 
-And open your browser in `resources/public/index.html`. You will not
-get live reloading, nor a REPL.
+    npm test
+
+This loads the build output in jsdom and asserts the table came out right. React
+19 renders asynchronously, so the test waits a tick before asserting; without
+that wait it reports zero rows and passes anyway.
+
+To clear the build output:
+
+    npm run clean
+
+### REPL
+
+`npm run dev` starts an nREPL server on port 8777 and writes
+`.shadow-cljs/nrepl.port`. Connect your editor to it, then:
+
+```clj
+(shadow/repl :app)
+```
+
+to get a ClojureScript REPL attached to the running build and browser.
+
+## Layout
+
+```
+public/
+  index.template.html   source of truth for the page
+  index.html            GENERATED on every build -- do not edit
+  css/style.css
+  fonts/                self-hosted Arimo and Cutive Mono
+  js/                   build output (gitignored)
+src/income_converter/core.cljs   the whole app
+src/build_hooks.clj              generates index.html from the template
+scripts/fetch-fonts.py           refreshes public/fonts
+test/smoke.mjs
+```
+
+`index.html` is generated because release bundles get content-hashed file names
+for cache busting, so the script tag has to be written to match whatever the
+build emitted.
+
+## Deployment
+
+Pushing to `master` runs `.github/workflows/deploy.yml`, which builds, smoke
+tests, and publishes `public/` to GitHub Pages. Pull requests run the same build
+and test without deploying. Nothing is built by hand or committed as build
+output.
 
 ## License
 

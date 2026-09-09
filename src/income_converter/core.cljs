@@ -1,6 +1,6 @@
 (ns income-converter.core
   (:require
-   [cljsjs.react]
+   ["react-dom/client" :as rdom]
    [cljs.reader :as reader]
    [goog.i18n.NumberFormat]
    [sablono.core :as sab :include-macros true]))
@@ -215,9 +215,10 @@
 
 ;; render
 
+(defonce root (rdom/createRoot (.getElementById js/document "app")))
+
 (defn render []
-  (let [node (.getElementById js/document "app")]
-    (js/ReactDOM.render (page @app-state) node)))
+  (.render root (page @app-state)))
 
 (render)
 
