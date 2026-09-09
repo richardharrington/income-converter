@@ -108,6 +108,18 @@ body {
   display: inline-block;
 }
 
+/* wraps the table and the tax-year note, so the note lands under the
+   table rather than beside the floated input section */
+.table-section {
+  display: inline-block;
+}
+
+.tax-year {
+  font-size: 0.8em;
+  color: #555555;
+  margin-top: 6px;
+}
+
 table {
   border-collapse: collapse;
   border: 2px solid #008000;
