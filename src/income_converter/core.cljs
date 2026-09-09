@@ -12,11 +12,16 @@
 (defn input->int
   "This function is parseInt, except that the empty string
    -- meaning the user deleted everything in the box --
-   counts as 0."
+   counts as 0, and input parseInt can't read at all is nil
+   rather than NaN. NaN is truthy in CLJS, so returning it
+   would sail through the when-let in update-app-state! and
+   poison the arithmetic in every table row."
   [input]
   (if (= input "")
     0
-    (js/parseInt input)))
+    (let [n (js/parseInt input)]
+      (when-not (js/isNaN n)
+        n))))
 
 (defn dollar-str
   "round to the nearest dollar, no decimal places"
@@ -30,9 +35,13 @@
 
 ;; constants
 
-(def soc-sec-rate 0.123)
-(def medicare-rate 0.030)
-(def soc-sec-salary-cutoff 113700)
+;; Combined employer + employee payroll tax rates, halved at the point
+;; of use to model the employer's share. Tax year 2026; the Social
+;; Security wage base is adjusted by the SSA every year, so this cutoff
+;; needs revisiting each January.
+(def soc-sec-rate 0.124)
+(def medicare-rate 0.029)
+(def soc-sec-salary-cutoff 184500)
 
 (def max-hourly-wage 200)
 (def hourly-wage-step 5)
@@ -63,15 +72,31 @@
                    :low-hourly-wage 30
                    :high-hourly-wage 45})
 
+(defn usable-number?
+  [x]
+  (and (number? x) (not (js/isNaN x))))
+
+(defn stored-app-data
+  "Persisted data, or nil when there is nothing usable stored.
+   Storage written before input->int guarded against NaN can hold
+   values that no longer read back as numbers, so anything
+   unreadable or non-numeric is discarded in favor of the defaults."
+  []
+  (when-let [stored-edn (. js/localStorage (getItem "app-data"))]
+    (let [parsed (try
+                   (reader/read-string stored-edn)
+                   (catch :default _ nil))]
+      (when (and (map? parsed)
+                 (seq parsed)
+                 (every? usable-number? (vals parsed)))
+        parsed))))
+
 (defn initial-state
   "Recover from localStorage or use default, but in either case
    use the 'data' values for both 'data' and 'display' (no need
    to persist messiness and user errors through a refresh)"
   []
-  (let [app-data
-        (if-let [stored-edn (. js/localStorage (getItem "app-data"))]
-          (reader/read-string stored-edn)
-          default-data)]
+  (let [app-data (or (stored-app-data) default-data)]
     {:data app-data
      :display app-data}))
 
