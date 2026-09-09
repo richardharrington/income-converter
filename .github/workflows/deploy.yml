@@ -1,0 +1,78 @@
+# Builds the site and, on master, publishes it to GitHub Pages.
+#
+# The Pages source must be set to "GitHub Actions" (Settings -> Pages -> Build
+# and deployment -> Source) for the deploy job to have any effect.
+
+name: build and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  # lets a failed run be retried by hand, e.g. after a network blip
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # shadow-cljs resolves its Clojure/ClojureScript deps through Maven
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ hashFiles('shadow-cljs.edn', 'package-lock.json') }}
+          restore-keys: m2-
+
+      - run: npm ci
+
+      - name: Build
+        run: npx shadow-cljs release app
+
+      - name: Smoke test
+        run: npm test
+
+      # the template is a build input, not something to publish
+      - name: Stage the site
+        run: rm public/index.template.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    # one deploy at a time; never cancel one midway
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
