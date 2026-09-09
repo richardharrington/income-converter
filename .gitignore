@@ -12,4 +12,9 @@
 .nrepl-port
 *.jar
 
+# editor tooling caches. Only the caches -- .clj-kondo/config.edn and
+# .lsp/config.edn are worth sharing if they ever get written.
+/.clj-kondo/.cache/
+/.lsp/.cache/
+
 .DS_Store
