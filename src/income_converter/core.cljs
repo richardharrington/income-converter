@@ -3,9 +3,28 @@
    ["react-dom/client" :as rdom]
    [cljs.reader :as reader]
    [goog.i18n.NumberFormat]
-   [sablono.core :as sab :include-macros true]))
+   [sablono.core :as sab :include-macros true]
+   [sablono.interpreter]))
 
 (enable-console-print!)
+
+;; Sablono routes every :input, :select and :textarea carrying a :value
+;; through its own class component, which reads the live DOM node with
+;; ReactDOM.findDOMNode. React 19 removed findDOMNode, so the first keystroke
+;; in any box threw and unmounted the entire app. There is no way to opt out
+;; of that wrapper from the call site -- sablono picks it in element-class,
+;; for any controlled form element -- so the check that selects it is disabled
+;; here.
+;;
+;; What the wrapper does is work around an old IE bug where onChange arrived
+;; after the element's value had already changed (React #7027). React handles
+;; controlled inputs correctly on its own now, and sablono has not shipped a
+;; release since 2019, so this is not waiting on an upgrade. Removing it also
+;; drops the componentWillReceiveProps deprecation warning it caused.
+;;
+;; test/smoke.mjs types into the inputs; if a sablono change ever makes this
+;; ineffective, that fails rather than reaching a user.
+(set! sablono.interpreter/controlled-input? (constantly false))
 
 ;; helpers
 
