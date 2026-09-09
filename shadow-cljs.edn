@@ -1,0 +1,35 @@
+;; Build config. See README.md for the commands that drive it.
+{:source-paths ["src"]
+
+ ;; ClojureScript and Closure come pinned by the shadow-cljs version in
+ ;; package.json; shadow-cljs rejects an override here.
+ :dependencies [[sablono "0.8.6"]]
+
+ ;; nREPL for editor-connected CLJS development: connect, then (shadow/repl :app)
+ :nrepl {:port 8777}
+
+ ;; dev server, serving the same public/ directory that gets deployed.
+ ;; The push-state handler makes "/" serve index.html, the way GitHub Pages
+ ;; does; without it only "/index.html" resolves.
+ :dev-http {3449 {:root "public"
+                  :handler shadow.http.push-state/handle}}
+
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "public/js"
+   :asset-path "js"
+   :modules {:main {:entries [income-converter.core]}}
+
+   ;; writes public/index.html from index.template.html on every build,
+   ;; dev and release alike, so the script tag always names the file that
+   ;; was actually emitted
+   :build-hooks [(build-hooks/write-index)]
+
+   :devtools {:after-load income-converter.core/render
+              ;; live-reloads css/style.css the way figwheel's :css-dirs did
+              :watch-dir "public"}
+
+   ;; hashed filenames for cache busting; dev stays unhashed so hot reload
+   ;; keeps a stable URL to reload
+   :release {:module-hash-names true}}}}

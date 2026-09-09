@@ -1,13 +1,14 @@
-/resources/public/js/compiled/**
-figwheel_server.log
-pom.xml
-*jar
-/lib/
-/classes/
-/out/
+# build output
+/public/js/
+/public/index.html
+/.shadow-cljs/
+/node_modules/
 /target/
-.lein-deps-sum
-.lein-repl-history
-.lein-plugins/
-.repl
+/out/
+
+# tooling scratch
+.cpcache/
 .nrepl-port
+*.jar
+
+.DS_Store
