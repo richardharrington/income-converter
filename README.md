@@ -10,37 +10,95 @@ If you're thinking about taking any kind of gig where you get paid hourly with n
 
 ## How it works
 
-The user input consists of three main state variables: the amount of hours you'll be working per week, the number of weeks you'll be taking off each year, and the health insurance subsidy -- the difference between what you'd expect to pay for insurance on the open market, and what you'd expect to pay if you had an employer who was covering most of it.
+The user input consists of four state variables: the hourly wage you're being offered, the amount of hours you'll be working per week, the number of weeks you'll be taking off each year, and the health insurance subsidy -- the difference between what you'd expect to pay for insurance on the open market, and what you'd expect to pay if you had an employer who was covering most of it.
 
 In addition to that, there are two more main things taken into account by the app in the background: Social Security tax (which is not collected after a certain salary cap is reached) and Medicare tax. Half of each of these is paid by your employer, whether you are an hourly employee or a salaried employee, but not if you are receiving a 1099 as a contractor.
 
-All of this is put into a table, with sliders for the user to limit the hourly wage ranges.
+The app models only what *differs* between the two scenarios and holds everything else constant. Income tax is left out because a contractor and a salaried employee both pay it, and the weeks off you enter apply to both sides -- the question being answered is "at the amount of time off I want, what salary matches this gig?"
 
-Here is the heart of the code, containing the business logic (`dollar-str` formats a number as currency). It shows one column for what your full-time salary equivalent would be in the case where you're getting a W2 (in which case half of your payroll taxes are covered by your employer), and one in the case where you're getting a 1099:
+All of this is put into a single-row table.
+
+Here is the heart of the code. Note that both salary columns are *solved* rather
+than approximated: the number being looked for is a lower salary, and that lower
+salary carries less payroll tax of its own. That is a fixed point, but it does
+not need a bisection -- the equation is piecewise linear, so there are two closed
+forms and you pick whichever satisfies its own condition:
 
 ```clojure
-;; Combined employer + employee rates, halved at the point of use to model
-;; the employer's share. Tax year 2026; the SSA resets the Social Security
-;; wage base every January, so the cutoff needs revisiting annually.
+;; Combined employer + employee payroll tax rates, halved at the point of
+;; use to model the employer's share. Tax year 2026; the SSA resets the
+;; Social Security wage base every January.
+(def tax-year 2026)
 (def soc-sec-rate 0.124)
 (def medicare-rate 0.029)
 (def soc-sec-salary-cutoff 184500)
 
-(defn row [{:keys [hourly-wage
-                   hours-per-week
-                   weeks-off
-                   health-ins-diff]}]
+;; Self-employment tax is levied on 92.35% of net self-employment earnings,
+;; not on all of them. That statutory factor mirrors the fact that an
+;; employer's half of FICA is not part of an employee's wages.
+(def se-tax-base-factor 0.9235)
+
+(defn employee-fica
+  "The employee's half of FICA on a salary. The Social Security half
+   stops at the wage base; the Medicare half does not."
+  [salary]
+  (+ (* (min salary soc-sec-salary-cutoff) (/ soc-sec-rate 2))
+     (* salary (/ medicare-rate 2))))
+
+(defn self-employment-tax
+  "What a contractor pays: both halves of FICA, on 92.35% of earnings.
+   Note the Social Security cap applies to that reduced base, not to
+   gross."
+  [gross]
+  (let [base (* gross se-tax-base-factor)]
+    (+ (* (min base soc-sec-salary-cutoff) soc-sec-rate)
+       (* base medicare-rate))))
+
+(defn equivalent-salary
+  "The salary S whose take-home matches `take-home`, i.e. the S solving
+
+     S - employee-fica(S) = take-home
+
+   The salary being solved for is lower than the hourly gross and so
+   carries less payroll tax of its own; subtracting from the gross
+   instead -- which is what this app used to do -- short-circuits that
+   fixed point. No bisection is needed: employee-fica is piecewise
+   linear in S, so there are two closed forms. Try the below-the-cap
+   one and use it when its own answer is in fact below the cap."
+  [take-home]
+  (let [below-cap (/ take-home (- 1 (/ soc-sec-rate 2) (/ medicare-rate 2)))]
+    (if (<= below-cap soc-sec-salary-cutoff)
+      below-cap
+      (/ (+ take-home (* soc-sec-salary-cutoff (/ soc-sec-rate 2)))
+         (- 1 (/ medicare-rate 2))))))
+
+(defn row-figures
+  "Every figure on one line of the table. Pure, and the only place the
+   arithmetic lives; `row` just renders what this returns.
+
+   Only what differs between the two sides of the comparison is
+   modelled -- see the instructions panel."
+  [{:keys [hourly-wage
+           hours-per-week
+           weeks-off
+           health-ins-diff]}]
   (let [weekly-income (* hourly-wage hours-per-week)
         yearly-income (* weekly-income (- 52 weeks-off))
-        if-w2 (- yearly-income (* health-ins-diff 12))
-        soc-sec-tax (* (min yearly-income soc-sec-salary-cutoff)
-                       (/ soc-sec-rate 2))
-        medicare-tax (* yearly-income (/ medicare-rate 2))
-        if-1099 (- if-w2 (+ soc-sec-tax medicare-tax))]
-    (sab/html
-     [:tr
-      (for [n [hourly-wage weekly-income yearly-income if-w2 if-1099]]
-        [:td (dollar-str n)])])))
+        yearly-insurance (* health-ins-diff 12)
+        ;; An hourly W-2 employee owes the employee half of FICA on the
+        ;; whole gross, and buys their own insurance.
+        w2-take-home (- yearly-income
+                        (employee-fica yearly-income)
+                        yearly-insurance)
+        ;; A contractor owes both halves, on the 92.35% base.
+        contractor-take-home (- yearly-income
+                                (self-employment-tax yearly-income)
+                                yearly-insurance)]
+    {:hourly-wage hourly-wage
+     :weekly-income weekly-income
+     :yearly-income yearly-income
+     :if-w2 (equivalent-salary w2-take-home)
+     :if-1099 (equivalent-salary contractor-take-home)}))
 ```
 
 ## Setup

@@ -84,36 +84,22 @@
 ;; the rates above.
 (def se-tax-base-factor 0.9235)
 
-(def max-hourly-wage 200)
-(def hourly-wage-step 5)
-
-(def inputs [{:key :hours-per-week
-              :type "text"
+(def inputs [{:key :hourly-wage
+              :label "Hourly wage"}
+             {:key :hours-per-week
               :label "Hours per week"}
              {:key :weeks-off
-              :type "text"
               :label "Weeks off"}
              {:key :health-ins-diff
-              :type "text"
-              :label "Monthly health insurance diff"}
-             {:key :low-hourly-wage
-              :type "range"
-              :label "Minimum hourly wage"}
-             {:key :high-hourly-wage
-              :type "range"
-              :label "Maximum hourly wage"}])
-
-(def wage-slider-keys #{:low-hourly-wage :high-hourly-wage})
+              :label "Monthly health insurance diff"}])
 
 
 ;; user-alterable state
 
-(def default-data {:hours-per-week 30
+(def default-data {:hourly-wage 30
+                   :hours-per-week 30
                    :weeks-off 4
-                   :health-ins-diff 200
-
-                   :low-hourly-wage 30
-                   :high-hourly-wage 45})
+                   :health-ins-diff 200})
 
 (defn usable-number?
   [x]
@@ -123,35 +109,27 @@
   "Persisted data, or nil when there is nothing usable stored.
    Storage written before input->number guarded against NaN and
    Infinity can hold values that no longer read back as usable
-   numbers, so anything unreadable or non-numeric is discarded in
-   favor of the defaults."
+   numbers, and storage written before the wage sliders became a
+   single hourly-wage box has keys this no longer renders from, so
+   anything unreadable, non-numeric or not shaped like default-data
+   is discarded in favor of the defaults. A missing key would
+   otherwise reach the arithmetic as nil and quietly compute $0."
   []
   (when-let [stored-edn (. js/localStorage (getItem "app-data"))]
     (let [parsed (try
                    (reader/read-string stored-edn)
                    (catch :default _ nil))]
       (when (and (map? parsed)
-                 (seq parsed)
+                 (= (set (keys parsed)) (set (keys default-data)))
                  (every? usable-number? (vals parsed)))
         parsed))))
-
-(defn uncross-wage-range
-  "A minimum above the maximum makes the wage range empty and the
-   table silently vanish. The sliders push each other apart on write,
-   but stored-app-data checks only that the values are numbers, so a
-   pair written before that existed -- or hand-edited -- still loads
-   crossed, and no handler ever runs on it."
-  [{:keys [low-hourly-wage high-hourly-wage] :as data}]
-  (if (and (number? low-hourly-wage) (number? high-hourly-wage))
-    (assoc data :high-hourly-wage (max low-hourly-wage high-hourly-wage))
-    data))
 
 (defn initial-state
   "Recover from localStorage or use default, but in either case
    use the 'data' values for both 'data' and 'display' (no need
    to persist messiness and user errors through a refresh)"
   []
-  (let [app-data (uncross-wage-range (or (stored-app-data) default-data))]
+  (let [app-data (or (stored-app-data) default-data)]
     {:data app-data
      :display app-data}))
 
@@ -164,22 +142,6 @@
 
 (defonce app-state (atom (assoc (initial-state) :show-instructions? false)))
 
-(defn push-other-slider
-  "Dragging one wage slider past the other pushes the other along, so
-   the crossed state is unreachable rather than merely recovered from.
-   Both :data and :display move, or the pushed slider would keep
-   rendering at its old position."
-  [state key n]
-  (let [other (if (= key :low-hourly-wage) :high-hourly-wage :low-hourly-wage)
-        crossed? (if (= key :low-hourly-wage)
-                   (> n (get-in state [:data other]))
-                   (< n (get-in state [:data other])))]
-    (if crossed?
-      (-> state
-          (assoc-in [:data other] n)
-          (assoc-in [:display other] n))
-      state)))
-
 (defn update-app-state!
   "uses what the person actually typed to update the
    display-state, but does some validation and
@@ -187,10 +149,7 @@
   [key val]
   (swap! app-state assoc-in [:display key] val)
   (when-let [n (input->number val)]
-    (swap! app-state
-           (fn [state]
-             (cond-> (assoc-in state [:data key] n)
-               (wage-slider-keys key) (push-other-slider key n))))
+    (swap! app-state assoc-in [:data key] n)
     ;; pr-str rather than letting setItem coerce the map: cljs.reader
     ;; reads this back on the next load, so the round trip is
     ;; intentional and not a happy accident of how maps print.
@@ -273,16 +232,11 @@
 (defn row [row-input]
   (let [figures (row-figures row-input)]
     (sab/html
-     [:tr {:key (:hourly-wage figures)}
+     [:tr
       (for [column row-columns]
         [:td {:key (name column)} (dollar-str (get figures column))])])))
 
-(defn main-table [{:keys [hours-per-week
-                          weeks-off
-                          health-ins-diff
-
-                          low-hourly-wage
-                          high-hourly-wage]}]
+(defn main-table [row-input]
   (sab/html
    [:table.main-table
     [:thead
@@ -293,44 +247,30 @@
       [:th "If you'll be paid as an employee on a W-2, FTE salary equiv is:"]
       [:th "If you'll be an independent contractor, FTE salary equiv is:"]]]
     [:tbody
-     (let [wage-range (range low-hourly-wage
-                             (inc high-hourly-wage)
-                             hourly-wage-step)]
-       (map #(row {:hourly-wage %
-                   :hours-per-week hours-per-week
-                   :weeks-off weeks-off
-                   :health-ins-diff health-ins-diff})
-            wage-range))]]))
+     (row row-input)]]))
 
-(defn input-row [{:keys [id val label type update!]}]
-  (let [range? (= type "range")
-        label-text (str label (when range? (str ": " val)))]
-    (sab/html
-     [:div.input-row {:key id}
-      [:label {:for id} label-text]
-      ;; min/max/step only where they mean something. The text boxes stay
-      ;; type="text" on purpose: React number inputs report value === ""
-      ;; for intermediate states like "7." in several browsers, and the
-      ;; empty string counts as 0, so a half-typed decimal would silently
-      ;; zero the field. The display/data split already does the
-      ;; validating.
-      [:input (cond-> {:id id
-                       :value val
-                       :type type
-                       :title val
-                       :on-change #(update! (.. % -target -value))}
-                range? (assoc :min 0
-                              :max max-hourly-wage
-                              :step hourly-wage-step))]])))
+(defn input-row [{:keys [id val label update!]}]
+  (sab/html
+   [:div.input-row {:key id}
+    [:label {:for id} label]
+    ;; type="text", not type="number": React number inputs report
+    ;; value === "" for intermediate states like "7." in several
+    ;; browsers, and the empty string counts as 0, so a half-typed
+    ;; decimal would silently zero the field. The display/data split
+    ;; already does the validating.
+    [:input {:id id
+             :value val
+             :type "text"
+             :title val
+             :on-change #(update! (.. % -target -value))}]]))
 
 (defn input-section [display-vals]
   (sab/html
    [:div.input-section
-    (for [{:keys [key type label]} inputs]
+    (for [{:keys [key label]} inputs]
       (input-row {:id (name key)
                   :val (get display-vals key)
                   :label label
-                  :type type
                   :update! (partial update-app-state! key)}))]))
 
 (defn header [show-instructions?]
@@ -344,6 +284,7 @@
      [:h2.sub-hed "A glorified excel spreadsheet for comparing hourly gigs to salaried jobs with benefits"]
      [:h4.sub-hed "When you're looking at hourly gigs and you want to find out what the salaried equivalents are -- that is, the salary you'd have to make in order to have the same amount of money left over after paying for taxes and health insurance -- just type in the following:"]
      [:ol
+      [:li "The hourly wage you're being offered"]
       [:li "The amount of hours you expect to work every week"]
       [:li "The total number of weeks you expect to take off each year"]
       [:li "The estimated health insurance subsidy: the difference between what you'd expect to pay for insurance on the open market, and what you'd expect to pay if you had an employer who was covering most of it"]]

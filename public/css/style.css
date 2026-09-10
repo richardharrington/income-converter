@@ -167,7 +167,3 @@ td {
   clear: both;
   display: block;
 }
-
-.input-row input[type="range"] {
-  width: 195px;
-}

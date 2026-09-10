@@ -78,6 +78,8 @@ const tick = () => new Promise((resolve) => window.setTimeout(resolve, 60));
 window.eval(bundle);
 await tick();
 
+// input order matches the `inputs` vector in core.cljs:
+//   0 hourly wage, 1 hours per week, 2 weeks off, 3 monthly insurance
 const inputs = () => document.querySelectorAll(".input-section input");
 const rows = () =>
   [...document.querySelectorAll("table.main-table tbody tr")].map((tr) =>
@@ -104,8 +106,8 @@ const check = (label, actual, ok) => {
 
 check("#app has children",
       document.getElementById("app")?.children.length ?? 0, (n) => n > 0);
-check("table body rows", rows().length, (n) => n > 0);
-check("inputs", inputs().length, (n) => n === 5);
+check("table body rows", rows().length, (n) => n === 1);
+check("inputs", inputs().length, (n) => n === 4);
 check("first row is dollar amounts", rows()[0] ?? [], (cells) =>
       cells.length === 5 && cells.every((c) => /^\$[\d,]+$/.test(c)));
 
@@ -119,66 +121,56 @@ check("first row is dollar amounts", rows()[0] ?? [], (cells) =>
 const row = (n) => JSON.stringify(rows()[n] ?? []);
 const is = (cells) => (r) => r === JSON.stringify(cells);
 
-check("$30 row at defaults", row(0),
+check("the row at defaults", row(0),
       is(["$30", "$900", "$43,200", "$40,601", "$37,570"]));
-check("$45 row at defaults", row(3),
-      is(["$45", "$1,350", "$64,800", "$62,201", "$57,655"]));
 
 // --- interaction ----------------------------------------------------------
 
-// hours per week 30 -> 35 recomputes the whole $30 row
-await type(0, "35");
-check("recalculates after typing", row(0),
+// the wage box drives the whole row
+await type(0, "45");
+check("recalculates after typing a wage", row(0),
+      is(["$45", "$1,350", "$64,800", "$62,201", "$57,655"]));
+await type(0, "30");
+
+// hours per week 30 -> 35 recomputes it too
+await type(1, "35");
+check("recalculates after typing hours", row(0),
       is(["$30", "$1,050", "$50,400", "$47,801", "$44,265"]));
 
 // a fractional entry reaches the table rather than being truncated to 37
-await type(0, "37.5");
-check("decimal input is displayed", inputs()[0]?.value, (v) => v === "37.5");
+await type(1, "37.5");
+check("decimal input is displayed", inputs()[1]?.value, (v) => v === "37.5");
 check("decimal input reaches the table", row(0),
       is(["$30", "$1,125", "$54,000", "$51,401", "$47,612"]));
 
-await type(0, "30");
+await type(1, "30");
 check("back to the default hours", row(0),
       is(["$30", "$900", "$43,200", "$40,601", "$37,570"]));
 
 // unparseable input shows in the box but must not reach the arithmetic
 const beforeGarbage = row(0);
-await type(2, "abc");
-check("garbage input is displayed", inputs()[2]?.value, (v) => v === "abc");
+await type(3, "abc");
+check("garbage input is displayed", inputs()[3]?.value, (v) => v === "abc");
 check("garbage input does not reach the table", row(0),
       (r) => r === beforeGarbage);
-await type(2, "200");
+await type(3, "200");
 
 // --- the Social Security cap ----------------------------------------------
 
-// Four separate boundaries sit between these two rows: where the employee
+// Four separate boundaries sit between these two wages: where the employee
 // half of FICA caps, where each solved-for salary crosses the cap, and
 // where the 92.35% self-employment base caps. $125 is below all four and
 // $145 above all four.
 
-await type(4, "145");
-await type(3, "125");
-check("slider changes row count", rows().length, (n) => n === 5);
-check("$125 row, below every cap", row(0),
+await type(0, "125");
+check("$125, below every cap", row(0),
       is(["$125", "$3,750", "$180,000", "$177,401", "$164,772"]));
-check("$145 row, above every cap", row(4),
+
+await type(0, "145");
+check("$145, above every cap", row(0),
       is(["$145", "$4,350", "$208,800", "$206,365", "$192,155"]));
 
-// --- crossed sliders ------------------------------------------------------
-
-// A minimum above the maximum makes the wage range empty and the table
-// silently vanish, so dragging one slider past the other pushes it along
-// instead. Both directions.
-
-await type(3, "150");
-check("minimum pushes the maximum", inputs()[4]?.value, (v) => v === "150");
-check("pushed range still has a row", rows().length, (n) => n === 1);
-
-await type(4, "40");
-check("maximum pushes the minimum", inputs()[3]?.value, (v) => v === "40");
-check("pushed range still has a row", rows().length, (n) => n === 1);
-
-check("app survived interaction", inputs().length, (n) => n === 5);
+check("app survived interaction", inputs().length, (n) => n === 4);
 check("unexpected console output", consoleMessages, (m) => m.length === 0);
 
 window.close();
